@@ -11,7 +11,3 @@ __pycache__/
 *.db-wal
 *.db-shm
 logs/
-
-# The test suite is still being translated to English; it is added in the next
-# commit. Remove this line together with that update.
-tests/

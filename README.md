@@ -202,6 +202,11 @@ English question still finds English text (the words are what you typed), but th
 smart date reading and the synonym table are Dutch for now. Adding an English
 word list is a logical next step.
 
+A few internal *data* values stay Dutch as well — the SQLite table and column
+names, the keys under `extra`, kind values such as `tekst` and `muziek`, and the
+route marker `tekstlaag` (text layer). They are written into the index itself, so
+renaming them would break every index that already exists.
+
 ## Limitations, honestly
 
 * **No Outlook archives.** `.pst` and `.msg` are not read, nor are the native
@@ -245,12 +250,8 @@ skip list for system folders (and that ordinary folders such as *Documents* and
 itself staying out, and interim saving and resuming after a stop.
 
 Some of the test data is Dutch on purpose, because the program is tested against
-the Dutch language handling described above.
-
-**Status of this release:** the test suite is the last file still being
-translated from Dutch to English. It is not part of this first commit; it is
-added in the next one. Everything else here — the program, the documentation and
-the scripts — is English.
+the Dutch language handling described above. There are 102 tests; they run in
+about three seconds.
 
 ## Building the .exe (optional)
 

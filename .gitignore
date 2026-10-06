@@ -1,0 +1,17 @@
+# Build output and local artefacts — never part of the repository
+build/
+dist/
+*.spec
+__pycache__/
+*.py[cod]
+.vindterug-demo/
+
+# A local index, its WAL files and crash logs
+*.db
+*.db-wal
+*.db-shm
+logs/
+
+# The test suite is still being translated to English; it is added in the next
+# commit. Remove this line together with that update.
+tests/

@@ -145,12 +145,13 @@ def detect(preference: str = "auto") -> str:
 def ocr_status_text(method: str) -> str:
     """Short explanation of the OCR mode, for in the interface."""
     return {
-        STATUS_OFF: "OCR staat uit — afbeeldingen worden niet gelezen.",
-        STATUS_WINDOWS: "OCR via de tekstherkenning van Windows (traag maar aanwezig).",
-        STATUS_TESSERACT: "OCR via Tesseract (nauwkeuriger).",
-        STATUS_UNAVAILABLE: "OCR is niet beschikbaar — afbeeldingen worden alleen "
-                                 "op bestandsnaam gevonden.",
-    }.get(method, "OCR-status onbekend.")
+        STATUS_OFF: "OCR is off — images are not read.",
+        STATUS_WINDOWS: "OCR through the text recognition built into Windows "
+                        "(slow, but always there).",
+        STATUS_TESSERACT: "OCR through Tesseract (more accurate).",
+        STATUS_UNAVAILABLE: "OCR is not available — images are only found by "
+                            "their file name.",
+    }.get(method, "OCR status unknown.")
 
 
 def _ps_quote(path: str) -> str:
@@ -170,9 +171,9 @@ def _ocr_via_tesseract(path: Path) -> OcrResult:
     exe = _tesseract_path()
     if not exe:
         return OcrResult("", STATUS_UNAVAILABLE,
-                           "Tesseract is niet gevonden op deze pc.")
+                           "Tesseract was not found on this PC.")
     base = Path(tempfile.mkdtemp(prefix="vindterug-ocr-"))
-    output = base / "uit"
+    output = base / "out"
     try:
         run = subprocess.run(
             [exe, str(path), str(output), "-l", "nld+eng", "--psm", "3"],
@@ -181,17 +182,17 @@ def _ocr_via_tesseract(path: Path) -> OcrResult:
         )
         if run.returncode != 0:
             return OcrResult("", STATUS_TESSERACT,
-                               f"Tesseract gaf een fout: {_clean_ps_error(run.stderr)}")
+                               f"Tesseract reported an error: {_clean_ps_error(run.stderr)}")
         file = output.with_suffix(".txt")
         if not file.exists():
-            return OcrResult("", STATUS_TESSERACT, "Tesseract leverde geen tekstbestand op.")
+            return OcrResult("", STATUS_TESSERACT, "Tesseract produced no text file.")
         text = file.read_text(encoding="utf-8", errors="ignore")
         return OcrResult(_clean(text), STATUS_TESSERACT, "")
     except subprocess.TimeoutExpired:
         return OcrResult("", STATUS_TESSERACT,
-                           f"Tesseract deed er langer dan {OCR_TIMEOUT} seconden over.")
+                           f"Tesseract took longer than {OCR_TIMEOUT} seconds.")
     except OSError as exc:
-        return OcrResult("", STATUS_TESSERACT, f"Tesseract kon niet starten: {exc}")
+        return OcrResult("", STATUS_TESSERACT, f"Tesseract could not start: {exc}")
     finally:
         shutil.rmtree(base, ignore_errors=True)
 
@@ -199,7 +200,7 @@ def _ocr_via_tesseract(path: Path) -> OcrResult:
 def _ocr_via_windows(path: Path) -> OcrResult:
     if not _windows_ocr_available():
         return OcrResult("", STATUS_UNAVAILABLE,
-                           "De tekstherkenning van Windows is hier niet beschikbaar.")
+                           "The text recognition of Windows is not available here.")
     workdir = Path(tempfile.mkdtemp(prefix="vindterug-ocr-"))
     script = workdir / "ocr.ps1"
     try:
@@ -212,14 +213,14 @@ def _ocr_via_windows(path: Path) -> OcrResult:
         )
         if run.returncode != 0:
             return OcrResult("", STATUS_WINDOWS,
-                               "Windows-tekstherkenning lukte niet: "
+                               "Windows text recognition failed: "
                                + _clean_ps_error(run.stderr or run.stdout))
         return OcrResult(_clean(run.stdout or ""), STATUS_WINDOWS, "")
     except subprocess.TimeoutExpired:
         return OcrResult("", STATUS_WINDOWS,
-                           f"De tekstherkenning deed er langer dan {OCR_TIMEOUT} seconden over.")
+                           f"The text recognition took longer than {OCR_TIMEOUT} seconds.")
     except OSError as exc:
-        return OcrResult("", STATUS_WINDOWS, f"PowerShell kon niet starten: {exc}")
+        return OcrResult("", STATUS_WINDOWS, f"PowerShell could not start: {exc}")
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
@@ -243,12 +244,12 @@ def ocr_image(path: str | Path, *, method: str = "auto") -> OcrResult:
     """
     p = Path(path)
     if not p.exists():
-        return OcrResult("", STATUS_OFF, "Dit bestand staat er niet meer.")
+        return OcrResult("", STATUS_OFF, "This file is gone.")
     try:
         if p.stat().st_size > MAX_FILE_SIZE:
-            return OcrResult("", STATUS_OFF, "Deze afbeelding is te groot om te lezen.")
+            return OcrResult("", STATUS_OFF, "This image is too large to read.")
     except OSError as exc:
-        return OcrResult("", STATUS_OFF, f"Kon de afbeelding niet openen: {exc}")
+        return OcrResult("", STATUS_OFF, f"Could not open the image: {exc}")
 
     chosen = detect(method)
     if chosen == STATUS_OFF:

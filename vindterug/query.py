@@ -76,11 +76,11 @@ KIND_WORDS: tuple[tuple[QueryKind, tuple[str, ...]], ...] = (
 
 # What the user typed -> the matching kind word, for the explanation.
 _KIND_EXPLANATION = {
-    QueryKind.MAIL: "je vroeg om een mailtje",
-    QueryKind.IMAGE: "je vroeg om een afbeelding of schermafdruk",
-    QueryKind.BROWSER: "je vroeg om iets dat je online hebt bekeken",
-    QueryKind.FILE: "je vroeg om een document of bestand",
-    QueryKind.ALL: "je vroeg niet om een bepaalde soort",
+    QueryKind.MAIL: "you asked for a mail",
+    QueryKind.IMAGE: "you asked for an image or a screenshot",
+    QueryKind.BROWSER: "you asked for something you looked at online",
+    QueryKind.FILE: "you asked for a document or file",
+    QueryKind.ALL: "you did not ask for a particular kind",
 }
 
 
@@ -187,12 +187,12 @@ def describe_explanation(query: Query) -> str:
     """Sentence that explains what VindTerug took from the query."""
     parts: list[str] = []
     if query.terms:
-        parts.append("ik zoek op: " + ", ".join(query.terms))
+        parts.append("searching for: " + ", ".join(query.terms))
     else:
-        parts.append("ik zoek op de hele vraag")
+        parts.append("searching for the whole question")
     if query.kind is not QueryKind.ALL:
         parts.append(_KIND_EXPLANATION[query.kind])
     if query.period is not None:
         where = f" — {query.time_recognition}" if query.time_recognition else ""
-        parts.append(f"en het moet uit {query.period.describe()} komen{where}")
+        parts.append(f"and it should be from {query.period.describe()}{where}")
     return "; ".join(parts)

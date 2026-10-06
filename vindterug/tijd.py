@@ -102,17 +102,27 @@ class FoundTime:
     precision: str = "day"         # "day", "month", "year" or "unknown"
 
 
+# Display names for a period label. The *recognition* stays Dutch (the MONTHS
+# keys and _PATTERNS below); only what we show the user is English.
+_MONTH_EN = ["January", "February", "March", "April", "May", "June", "July",
+             "August", "September", "October", "November", "December"]
+
+# Weekday names for the same purpose: the label we show, not the word we match.
+_WEEKDAY_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+               "Saturday", "Sunday"]
+
+
 def month_name(number: int) -> str:
-    """Dutch month name for month number 1..12."""
+    """English month name for month number 1..12."""
     if 1 <= number <= 12:
-        return _MONTH_NL[number - 1]
+        return _MONTH_EN[number - 1]
     return ""
 
 
 def describe_period(period: Period | None) -> str:
     """Short, readable description of a range."""
     if period is None:
-        return "altijd"
+        return "any time"
     s, e = period.start, period.end
     if s.year == e.year and s.month == e.month and s.day == e.day:
         return s.strftime("%d-%m-%Y")
@@ -120,7 +130,7 @@ def describe_period(period: Period | None) -> str:
         return f"{month_name(s.month)} {s.year}"
     if s.year == e.year and (s.month, s.day) == (1, 1):
         return str(s.year)
-    return f"{s.strftime('%d-%m-%Y')} t/m {e.strftime('%d-%m-%Y')}"
+    return f"{s.strftime('%d-%m-%Y')} to {e.strftime('%d-%m-%Y')}"
 
 
 def _day(moment: dt.datetime) -> dt.datetime:
@@ -163,17 +173,17 @@ def _weeks_back(nu: dt.datetime, weeks: int) -> Period:
     """The past N whole weeks, counted from today."""
     today = _day(nu)
     start = today - dt.timedelta(days=7 * weeks - 1)
-    plural = "weken" if weeks != 1 else "week"
+    label = "last week" if weeks == 1 else f"last {weeks} weeks"
     return Period(start, today + dt.timedelta(days=1) - dt.timedelta(seconds=1),
-                  f"afgelopen {weeks} {plural}")
+                  label)
 
 
 def _days_back(nu: dt.datetime, days: int) -> Period:
     today = _day(nu)
     start = today - dt.timedelta(days=days - 1)
-    plural = "dagen" if days != 1 else "dag"
+    label = "last day" if days == 1 else f"last {days} days"
     return Period(start, today + dt.timedelta(days=1) - dt.timedelta(seconds=1),
-                  f"afgelopen {days} {plural}")
+                  label)
 
 
 # Order matters: longer and more specific patterns come first, so that
@@ -309,30 +319,31 @@ def _build(name: str, match: re.Match, nu: dt.datetime) -> tuple[Period | None, 
     if name == "dagdeel":
         part = normalise(g.get("deel") or "")
         if part == "gisteravond":
-            return _day_period(_day(nu) - dt.timedelta(days=1), "gisteren"), "dag"
+            return _day_period(_day(nu) - dt.timedelta(days=1), "yesterday"), "dag"
         if part == "net":
-            return _day_period(_day(nu) - dt.timedelta(days=1), "gisteren"), "dag"
-        return _day_period(_day(nu), "vandaag"), "dag"
+            return _day_period(_day(nu) - dt.timedelta(days=1), "yesterday"), "dag"
+        return _day_period(_day(nu), "today"), "dag"
     if name == "gisteren":
-        return _day_period(_day(nu) - dt.timedelta(days=1), "gisteren"), "dag"
+        return _day_period(_day(nu) - dt.timedelta(days=1), "yesterday"), "dag"
     if name == "eergisteren":
-        return _day_period(_day(nu) - dt.timedelta(days=2), "eergisteren"), "dag"
+        return _day_period(_day(nu) - dt.timedelta(days=2),
+                           "the day before yesterday"), "dag"
     if name == "vandaag":
-        return _day_period(_day(nu), "vandaag"), "dag"
+        return _day_period(_day(nu), "today"), "dag"
     if name == "morgen":
-        return _day_period(_day(nu) + dt.timedelta(days=1), "morgen"), "dag"
+        return _day_period(_day(nu) + dt.timedelta(days=1), "tomorrow"), "dag"
     if name == "weekdag":
         day = _WEEKDAYS.get(normalise(g.get("dag") or ""), 0)
         start_of_week = _day(nu) - dt.timedelta(days=(nu.weekday() - day) % 7)
         if start_of_week > _day(nu):
             start_of_week -= dt.timedelta(days=7)
-        return _day_period(start_of_week, "afgelopen " + (g.get("dag") or "")), "dag"
+        return _day_period(start_of_week, f"last {_WEEKDAY_EN[day]}"), "dag"
     if name == "weekdag_kaal":
         day = _WEEKDAYS.get(normalise(g.get("dag") or ""), 0)
         last = _day(nu) - dt.timedelta(days=(nu.weekday() - day) % 7)
         if last > _day(nu):
             last -= dt.timedelta(days=7)
-        return _day_period(last, "afgelopen " + (g.get("dag") or "")), "dag"
+        return _day_period(last, f"last {_WEEKDAY_EN[day]}"), "dag"
     if name == "week":
         n = _number(g.get("n"), 1)
         if "weken" in match.group(0):
@@ -373,7 +384,7 @@ def _build(name: str, match: re.Match, nu: dt.datetime) -> tuple[Period | None, 
         year = _number(g.get("jaar"), 0)
         if valid_year(year):
             try:
-                return _day_period(dt.datetime(year, month, day), "dag"), "dag"
+                return _day_period(dt.datetime(year, month, day), ""), "dag"
             except ValueError:
                 return _month_period(year, month), "maand"
         year = nu.year
@@ -382,7 +393,7 @@ def _build(name: str, match: re.Match, nu: dt.datetime) -> tuple[Period | None, 
         if month > nu.month:
             year -= 1
         try:
-            return _day_period(dt.datetime(year, month, day), "dag"), "dag"
+            return _day_period(dt.datetime(year, month, day), ""), "dag"
         except ValueError:
             return _month_period(year, month), "maand"
     if name == "maand_alleen":
@@ -393,13 +404,13 @@ def _build(name: str, match: re.Match, nu: dt.datetime) -> tuple[Period | None, 
     if name == "datum_nl":
         day, month, year = _number(g.get("dag"), 1), _number(g.get("maand"), 1), _number(g.get("jaar"), 0)
         try:
-            return _day_period(dt.datetime(year, month, day), "dag"), "dag"
+            return _day_period(dt.datetime(year, month, day), ""), "dag"
         except ValueError:
             return None, ""
     if name == "datum_iso":
         year, month, day = _number(g.get("jaar"), 0), _number(g.get("maand"), 1), _number(g.get("dag"), 1)
         try:
-            return _day_period(dt.datetime(year, month, day), "dag"), "dag"
+            return _day_period(dt.datetime(year, month, day), ""), "dag"
         except ValueError:
             return None, ""
     if name == "jaar_alleen":
